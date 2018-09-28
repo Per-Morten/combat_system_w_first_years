@@ -4,7 +4,6 @@
 #include <random>
 #include <ctime>
 
-
 enum Type
 {
     RODENT,
@@ -60,6 +59,13 @@ void printStats(BaseStats stats)
         << " MP: " << stats.mp << "/" << stats.maxMP << "\n";
 }
 
+void hangWindow()
+{
+    std::cout << "Press enter to continue\n";
+    char buffer[2];
+    std::cin.ignore();
+    std::cin.getline(buffer, 1);
+}
 
 int
 main()
@@ -129,7 +135,7 @@ main()
         case 3:
             if (player.healthPotions > 0)
             {
-                player.healthPotions -= 1;
+                player.healthPotions--;
                 player.stats.hp += 5;
                 if (player.stats.hp >= player.stats.maxHP)
                 {
@@ -176,7 +182,7 @@ main()
         std::cout << "You have been defeated by a puny rat\n";
     }
 
-    system("Pause");
+    hangWindow();
 
 
     return 0;
