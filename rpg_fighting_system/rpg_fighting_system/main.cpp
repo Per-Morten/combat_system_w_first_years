@@ -3,12 +3,17 @@
 #include <cctype>
 #include <random>
 #include <ctime>
+#include <vector>
+#include <string>
 
 enum Type
 {
     RODENT,
     SLIME,
     ORC,
+    HUMAN,
+    DWARF,
+    ELF,
 };
 
 struct BaseStats
@@ -20,24 +25,28 @@ struct BaseStats
     int attackPower;
 };
 
+enum ActionType
+{
+    SPELL,
+    USE_ITEM,
+    ATTACK,
+};
+
+struct Action
+{
+    ActionType type;
+    int cost;
+    int damage;
+    std::string name;
+};
+
 struct Creature
 {
     BaseStats stats;
     Type type;
+    std::vector<Action> actions;
 };
 
-struct Spell
-{
-    int cost;
-    int damage;
-};
-
-struct Player
-{
-    BaseStats stats;
-    Spell fireball;
-    int healthPotions;
-};
 
 Creature createCreature(int maxHP, int maxMP, int attackPower, Type type)
 {
@@ -48,15 +57,151 @@ Creature createCreature(int maxHP, int maxMP, int attackPower, Type type)
     m.stats.maxMP = maxMP;
     m.type = type;
 
-    m.stats.attackPower = attackPower;
+    Action attack;
+    attack.cost = 0;
+    attack.damage = attackPower;
+    attack.name = "Regular attack";
+    attack.type = ActionType::ATTACK;
+    m.actions.push_back(attack);
 
     return m;
+}
+
+Creature createPlayer()
+{
+    Creature player = createCreature(20, 200, 10, Type::HUMAN);
+
+    Action fireball;
+    fireball.cost = 10;
+    fireball.damage = 50;
+    fireball.type = ActionType::SPELL;
+    fireball.name = "Fireball";
+    player.actions.push_back(fireball);
+
+    Action icebeam;
+    icebeam.cost = 10;
+    icebeam.damage = 50;
+    icebeam.type = ActionType::SPELL;
+    icebeam.name = "Icebeam";
+    player.actions.push_back(icebeam);
+
+    Action healthPotion;
+    healthPotion.cost = 5;
+    healthPotion.damage = 10;
+    healthPotion.name = "Minor Health Potion";
+    healthPotion.type = ActionType::USE_ITEM;
+    player.actions.push_back(healthPotion);
+
+    return player;
 }
 
 void printStats(BaseStats stats)
 {
     std::cout << " HP: " << stats.hp << "/" << stats.maxHP << "\n"
         << " MP: " << stats.mp << "/" << stats.maxMP << "\n";
+}
+
+std::string stringifyType(Type type)
+{
+    switch (type)
+    {
+    case Type::ORC:
+        return "Orc";
+        break;
+    case Type::RODENT:
+        return "Rodent";
+        break;
+    case Type::SLIME:
+        return "Slime";
+        break;
+    case Type::HUMAN:
+        return "Human";
+        break;
+    case Type::DWARF:
+        return "Dwarf";
+        break;
+    case Type::ELF:
+        return "Elf";
+        break;
+    }
+    return "";
+}
+
+void executeAction(Creature& executor, Action& action, Creature& target)
+{
+    if (action.type == ActionType::ATTACK)
+    {
+        target.stats.hp -= action.damage;
+        std::cout << stringifyType(executor.type) << " hit the " << stringifyType(target.type) << " dealing " << action.damage << " damage\n";
+    }
+    else if (action.type == ActionType::SPELL)
+    {
+        if (executor.stats.mp >= action.cost)
+        {
+            target.stats.hp -= action.damage;
+            executor.stats.mp -= action.damage;
+            std::cout << stringifyType(executor.type) << " hit the " << stringifyType(target.type) << " with " << action.name << " dealing " << action.damage << " damage\n";
+        }
+        else
+        {
+            std::cout << "You do not have enough mana to cast a " << action.name << ": " << action.cost << "\n";
+        }
+    }
+    else if (action.type == ActionType::USE_ITEM)
+    {
+        if (action.cost-- > 0)
+        {
+            executor.stats.hp += action.damage;
+            if (executor.stats.hp >= executor.stats.maxHP)
+                executor.stats.hp = executor.stats.maxHP;
+        }
+        else
+        {
+            std::cout << "You don't have enough health potions\n";
+        }
+    }
+}
+
+bool combat(Creature& player, Creature& enemy)
+{
+    std::string enemyType = stringifyType(enemy.type);
+
+    while (player.stats.hp > 0 && enemy.stats.hp > 0)
+    {
+        player.stats.mp += 5;
+        if (player.stats.mp >= player.stats.maxMP)
+            player.stats.mp = player.stats.maxMP;
+
+        std::cout << "Battle Screen:\n";
+        std::cout << "Player\n";
+        printStats(player.stats);
+
+        std::cout << enemyType << "\n";
+        printStats(enemy.stats);
+
+        srand(time(NULL));
+
+        for (int i = 0; i < player.actions.size(); i++)
+        {
+            std::cout << i << ". " << player.actions[i].name << "\n";
+        }
+
+        int choice = 0;
+        std::cin >> choice;
+
+        if (choice < player.actions.size() && choice >= 0)
+        {
+            executeAction(player, player.actions[choice], enemy);
+        }
+
+        int enemyChoice = std::rand() % enemy.actions.size();
+        if (enemyChoice < enemy.actions.size() && choice >= 0)
+        {
+            executeAction(enemy, enemy.actions[enemyChoice], player);
+        }
+    }
+
+    return player.stats.hp > 0;
 }
 
 void hangWindow()
@@ -70,116 +215,34 @@ void hangWindow()
 int
 main()
 {
-    // Combat screen
-    // EnemyHP
-    // EnemyMP
-    // PlayerHP
-    // PlayerMP
-    // Attack alternatives
-    // Enemy attacks (Random)
-    // Victory/Defeat message
+    Creature player = createPlayer();
 
-    Player player;
-    player.stats.maxHP = 10;
-    player.stats.hp = player.stats.maxHP;
-    player.stats.maxMP = 500;
-    player.stats.mp = player.stats.maxMP;
-    player.healthPotions = 2;
-    player.stats.attackPower = 3;
-    player.fireball.damage = 5;
-    player.fireball.cost = 250;
+    Creature rat = createCreature(10, 2, 2, Type::RODENT);
+    Creature orc = createCreature(30, 100, 2, Type::ORC);
+    
+    Action fireball;
+    fireball.cost = 10;
+    fireball.damage = 50;
+    fireball.type = ActionType::SPELL;
+    fireball.name = "Fireball";
+    orc.actions.push_back(fireball);
 
-    Creature rat = createCreature(30, 2, 2, Type::RODENT);
+    std::vector<Creature> creatures;
+    creatures.push_back(rat);
+    creatures.push_back(orc);
 
-    while (player.stats.hp > 0 && rat.stats.hp > 0)
+    for (int i = 0; i < creatures.size(); i++)
     {
-        player.stats.mp += 5;
-        if (player.stats.mp >= player.stats.maxMP)
-            player.stats.mp = player.stats.maxMP;
-
-        std::cout << "Battle Screen:\n";
-        std::cout << "Player\n";
-        printStats(player.stats);
-
-        std::cout << "Rat\n";
-        printStats(rat.stats);
-
-        srand(time(NULL));
-
-        std::cout << "What do you want to do?\n";
-        std::cout << "1. Hit regular\n"
-            << "2. Firemagic\n"
-            << "3. Drink healthpotion\n";
-
-        int choice = 0;
-        std::cin >> choice;
-        switch (choice)
+        bool result = combat(player, creatures[i]);
+        if (result)
         {
-        case 1:
-            rat.stats.hp -= player.stats.attackPower;
-            std::cout << "You hit the rat dealing " << player.stats.attackPower << " damage\n";
-            break;
-        case 2:
-            if (player.stats.mp >= player.fireball.cost)
-            {
-                std::cout << "You cast fireball at rat dealing " << player.fireball.damage << " damage\n";
-                rat.stats.hp -= player.fireball.damage;
-                player.stats.mp -= player.fireball.cost;
-            }
-            else
-            {
-                std::cout << "You do not have enough mana to cast a fireball: " << player.fireball.cost << "\n";
-            }
-
-            break;
-        case 3:
-            if (player.healthPotions > 0)
-            {
-                player.healthPotions--;
-                player.stats.hp += 5;
-                if (player.stats.hp >= player.stats.maxHP)
-                {
-                    player.stats.hp = player.stats.maxHP;
-                }
-                std::cout << "You drink a health potion, healing 5 hp\n";
-            }
-            else
-            {
-                std::cout << "You do not have any health potions left\n";
-            }
-            break;
-        default:
+            std::cout << "You stand victorious over the dead " << stringifyType(creatures[i].type) << "\n";
+        }
+        else
+        {
+            std::cout << "You have been defeated by a puny " << stringifyType(creatures[i].type) << "\n";
             break;
         }
-
-        int ratChoice = std::rand() % 2;
-        switch (ratChoice)
-        {
-        case 0:
-            player.stats.hp -= rat.stats.attackPower;
-            std::cout << "The rat hits you dealing " << rat.stats.attackPower << " damage\n";
-            break;
-        case 1:
-            if (rat.stats.hp >= rat.stats.maxHP / 2)
-            {
-                player.stats.hp -= rat.stats.attackPower * 2;
-                std::cout << "The rat hits you really hard dealing " << rat.stats.attackPower * 2 << " damage\n";
-            }
-            break;
-        }
-    }
-
-    if (rat.stats.hp <= 0 && player.stats.hp <= 0)
-    {
-        std::cout << "You both fall over each other dead\n";
-    }
-    else if (rat.stats.hp <= 0)
-    {
-        std::cout << "You stand victorious over the dead rat\n";
-    }
-    else if (player.stats.hp <= 0)
-    {
-        std::cout << "You have been defeated by a puny rat\n";
     }
 
     hangWindow();
